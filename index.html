@@ -16,12 +16,7 @@
             --border-color: #30363d;
         }
 
-        * { 
-            box-sizing: border-box; 
-            margin: 0; 
-            padding: 0; 
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         
         html, body {
             height: 100%;
@@ -34,7 +29,7 @@
         .app-container { 
             display: flex; 
             width: 100%; 
-            height: 100dvh; /* يتكيف تماماً مع ارتفاع شاشة الهاتف الديناميكي */
+            height: 100dvh; 
             flex-direction: column; 
         }
 
@@ -66,7 +61,7 @@
         .message img { max-width: 100%; max-height: 200px; border-radius: 8px; margin-bottom: 8px; display: block; }
 
         .chat-input-container { 
-            padding: 10px 10px calc(15px + env(safe-area-inset-bottom)) 10px; /* مساحة أمان مخصصة لأسفل شاشات Redmi */
+            padding: 10px 10px calc(15px + env(safe-area-inset-bottom)) 10px; 
             background: var(--sidebar-bg); 
             border-top: 1px solid var(--border-color); 
             flex-shrink: 0;
@@ -107,15 +102,20 @@
     </div>
 
     <script>
-        let apiKey = localStorage.getItem('openrouter_key') || '';
+        function getSavedKey() {
+            return (localStorage.getItem('openrouter_key') || '').trim();
+        }
 
         function promptApiKey() {
-            const key = prompt("أدخل مفتاح OpenRouter API الخاص بك (sk-or-v1-...):", apiKey);
+            const currentKey = getSavedKey();
+            const key = prompt("أدخل مفتاح OpenRouter API الخاص بك (sk-or-v1-...):", currentKey);
             if (key !== null) {
-                apiKey = key.trim();
-                localStorage.setItem('openrouter_key', apiKey);
-                if (apiKey) {
+                const cleanedKey = key.trim();
+                localStorage.setItem('openrouter_key', cleanedKey);
+                if (cleanedKey) {
                     alert("تم حفظ المفتاح بنجاح على هاتفك!");
+                } else {
+                    alert("تم مسح المفتاح.");
                 }
             }
         }
@@ -129,89 +129,4 @@
                     currentImg = evt.target.result;
                     document.getElementById('previewImg').src = currentImg;
                     document.getElementById('imagePreviewContainer').style.display = 'flex';
-                };
-                reader.readAsDataURL(file);
-            }
-        }
-
-        function clearImage() {
-            currentImg = null;
-            document.getElementById('imageInput').value = '';
-            document.getElementById('imagePreviewContainer').style.display = 'none';
-        }
-
-        function handleKeyPress(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        }
-
-        async function sendMessage() {
-            if (!apiKey) {
-                alert("يرجى إدخال مفتاح API أولاً بالضغط على زر '🔑 إدخال المفتاح' في الأعلى.");
-                promptApiKey();
-                return;
-            }
-
-            const input = document.getElementById('userInput');
-            const text = input.value.trim();
-            if(!text && !currentImg) return;
-
-            const chat = document.getElementById('chatMessages');
-            
-            let userHTML = `<div class="message user">`;
-            if(currentImg) userHTML += `<img src="${currentImg}" alt="صورة">`;
-            if(text) userHTML += `<span>${text}</span>`;
-            userHTML += `</div>`;
-            chat.innerHTML += userHTML;
-
-            const sendText = text || "قم بتحليل هذه الصورة وشرحها بالتفصيل.";
-            const sendImg = currentImg;
-            input.value = '';
-            clearImage();
-
-            const loadId = 'load-' + Date.now();
-            chat.innerHTML += `<div class="message bot" id="${loadId}">جاري التفكير...</div>`;
-            chat.scrollTop = chat.scrollHeight;
-
-            try {
-                let content = [{ type: "text", text: sendText }];
-                if(sendImg) {
-                    content.push({ type: "image_url", image_url: { url: sendImg } });
-                }
-
-                const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${apiKey}`,
-                        "HTTP-Referer": window.location.href,
-                        "X-Title": "AI Chat Bot",
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        "model": "google/gemini-flash-1.5:free",
-                        "messages": [{ "role": "user", "content": content }]
-                    })
-                });
-
-                const data = await res.json();
-                document.getElementById(loadId)?.remove();
-
-                if(data.choices && data.choices.length > 0) {
-                    const reply = data.choices[0].message.content;
-                    chat.innerHTML += `<div class="message bot">${reply}</div>`;
-                } else if(data.error) {
-                    chat.innerHTML += `<div class="message bot">خطأ: ${data.error.message || JSON.stringify(data.error)}</div>`;
-                } else {
-                    chat.innerHTML += `<div class="message bot">عذراً، لم يتم استلام رد صحيح من السيرفر.</div>`;
-                }
-            } catch(e) {
-                document.getElementById(loadId)?.remove();
-                chat.innerHTML += `<div class="message bot">حدث خطأ في الاتصال بالشبكة. تأكد من إعدادات الـ VPN ومفتاحك.</div>`;
-            }
-            chat.scrollTop = chat.scrollHeight;
-        }
-    </script>
-</body>
-</html>
+        
